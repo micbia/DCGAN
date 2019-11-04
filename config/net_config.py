@@ -1,4 +1,4 @@
-import configparser
+import configparser, numpy as np
 
 def StringOrNone(string):
     try:
@@ -12,25 +12,19 @@ class DefaultConfig:
 
         def_config = configparser.ConfigParser()
         def_config.optionxform=str
-        def_config['TRAINING'] = {'INPUT_DIM' :     4,
-                                  'OUTPUT_DIM' :    1,
-                                  'LOSS' :          'mse',
-                                  'HIDDEN_DIM_1' :  10,
-                                  'HIDDEN_DIM_2' :  '',
-                                  'HIDDEN_DIM_3' :  '',
-                                  'BATCH_SIZE' :    32,
-                                  'EPOCHS' :        1000,
-                                  'DROPOUT' :       0.2,
-                                  'ACTIVATION' :    'elu',
-                                  'LEARNING_RATE' : 0.01,
-                                  'METRICS' :       'mae, mse',
-                                  'REGULARIZER'  :  None,                                  
-                                  'GPU' :           None,
-                                  'PATH' :          None,
-                                  'DATA_USED' :     None}
+        def_config['TRAINING'] = {'INPUT_DIM'       : 100,
+                                  'COARSE_DIM'      : [7, 7, 256],
+                                  'OUTPUT_DIM'      : [28, 28, 1],
+                                  'KERNEL_SIZE'     : 5,
+                                  'UPSAMPLE_SIZE'   : 2,
+                                  'BATCH_SIZE'      : 32,
+                                  'ALPHA'           : 0.01,
+                                  'DROPOUT'         : 0.5,
+                                  'LEARNING_RATE'   : 2e-4,
+                                  'BETA1'           : 0.5}
 
-        def_config['RESUME'] = { 'RESUME_PATH'  :   None,
-                                 'RESUME_EPOCH' :   0}
+        def_config['RESUME'] = {'RESUME_PATH'      : None,
+                                'RESUME_EPOCH'     : 0}
 
         with open(self.path+'/example.ini', 'w') as configfile:
             def_config.write(configfile)
@@ -45,23 +39,12 @@ class NetworkConfig:
         
         trainconfig = config['TRAINING']
         self.input_dim      = eval(trainconfig['INPUT_DIM'])
-        self.output_dim     = eval(trainconfig['OUTPUT_DIM'])
-        self.hidden_dim_1   = eval(trainconfig['HIDDEN_DIM_1'])
-        self.hidden_dim_2   = eval(trainconfig['HIDDEN_DIM_2'])
-        self.hidden_dim_3   = eval(trainconfig['HIDDEN_DIM_3'])
-
-        self.loss           = trainconfig['LOSS']
+        self.coarse_dim     = np.array(eval(trainconfig['COARSE_DIM']), dtype=int)
+        self.output_dim     = np.array(eval(trainconfig['OUTPUT_DIM']), dtype=int)
+        self.upsampl_size   = eval(trainconfig['UPSAMPLE_SIZE'])
+        self.kernel_size    = eval(trainconfig['KERNEL_SIZE'])
         self.batch_size     = eval(trainconfig['BATCH_SIZE'])
-        self.epochs         = eval(trainconfig['EPOCHS'])
+        self.alpha          = eval(trainconfig['ALPHA'])
         self.dropout        = eval(trainconfig['DROPOUT'])
-        self.activation     = trainconfig['ACTIVATION']
         self.lr             = eval(trainconfig['LEARNING_RATE'])
-        self.metrics        = trainconfig['METRICS'].split(', ')
-        self.data_used      = trainconfig['DATA_USED']
-        self.regularizers   = trainconfig['REGULARIZER']
-        self.gpu            = eval(trainconfig['GPU'])
-        
-        resumeconfig = config['RESUME']
-        self.resume_epoch   = eval(resumeconfig['RESUME_EPOCH'])
-        self.resume_path    = StringOrNone(resumeconfig['RESUME_PATH'])
-        
+        self.beta1          = eval(trainconfig['BETA1'])
