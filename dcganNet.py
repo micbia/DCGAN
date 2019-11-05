@@ -228,7 +228,7 @@ class DCGANnetwork:
                 self.adversary.trainable = True
                 loss_real = self.adversary.train_on_batch(real_images, real_label)
                 loss_fake = self.adversary.train_on_batch(fake_images, fake_label)
-                self.loss_A.append(np.mean(loss_real, loss_fake)), self.loss_A_real.append(loss_real), self.loss_A_fake.append(loss_fake)
+                self.loss_A.append(np.mean([loss_real, loss_fake])), self.loss_A_real.append(loss_real), self.loss_A_fake.append(loss_fake)
                 self.adversary.trainable = False
 
                 # train generator network
