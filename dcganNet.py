@@ -21,8 +21,7 @@ class DCGANnetwork:
         # Configure networks
         self.path_config = PATH_CONFIG
         self.conf = NetworkConfig(self.path_config+'gan.ini')
-        self.optimizerG = optimizers.Adam(lr=self.conf.lr, beta_1=self.conf.beta1)   # see Radford et al. 2015
-        self.optimizerA = optimizers.SGD(lr=self.conf.lr, decay=1e-6, momentum=0.9, nesterov=True)       # see Sutskever et al. 2013
+        self.optimizer = optimizers.Adam(lr=self.conf.lr, beta_1=self.conf.beta1)   # see Radford et al. 2015
         self.loss = 'binary_crossentropy'
 
         # Create output directory and sub-directories
@@ -94,7 +93,7 @@ class DCGANnetwork:
         assert all(G.output_shape[1:] == self.conf.output_dim)
 
         # compile model
-        G.compile(loss=self.loss, optimizer=self.optimizerG)
+        G.compile(loss=self.loss, optimizer=self.optimizer)
 
         # Save model visualization
         plot_model(G, to_file=self.path_output+'model/generator_visualization.png', show_shapes=True, show_layer_names=True)
@@ -129,7 +128,7 @@ class DCGANnetwork:
         A.add(Dense(self.conf.output_dim[2], activation='sigmoid'))
         
         # compile model
-        A.compile(loss=self.loss, optimizer=self.optimizerA)
+        A.compile(loss=self.loss, optimizer=self.optimizer)
         A.trainable = False
 
         # Save model visualization
@@ -159,7 +158,7 @@ class DCGANnetwork:
         self.gan = models.Model(inputs=inputGAN, outputs=self.adversary(self.generator(inputGAN)))
         
         # compile network
-        self.gan.compile(loss=self.loss, optimizer=self.optimizerG)
+        self.gan.compile(loss=self.loss, optimizer=self.optimizer)
 
         # Save model visualization
         plot_model(self.gan, to_file=self.path_output+'model/gan_visualization.png', show_shapes=True, show_layer_names=True)
@@ -240,9 +239,16 @@ class DCGANnetwork:
             print('Adversary:\t tot_loss = %.3f\n\t\treal_loss = %.3f\n\t\tfake_loss = %.3f' %(self.loss_A[ep], self.loss_A_real[ep], self.loss_A_fake[ep]))
             print('Generator:\t tot_loss = %.3f' %self.loss_G[ep])
             
+            ''' 
             if(ep%5 == 0 and ep != 0):
                 self.CreateCheckpoint(epch=ep, prev_epch=prev_epoch)
                 self.PlotLoss(epch=ep)
                 prev_epoch = ep
+            '''
 
+        # save final losses
+        np.savetxt('%slossG.txt' %self.path_output, self.loss_G)
+        np.savetxt('%slossA.txt' %self.path_output, self.loss_A)
+        np.savetxt('%slossAr.txt' %self.path_output, self.loss_A_real)
+        np.savetxt('%slossAf.txt' %self.path_output, self.loss_A_fake)
         return 0
