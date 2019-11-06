@@ -1,7 +1,10 @@
+import sys
 from dcganNet import DCGANnetwork
 
-net = DCGANnetwork(PATH_CONFIG='./config/')
+script, init_file = sys.argv
+
+net = DCGANnetwork(CONFIG_FILE=init_file)
 net.DCGAN()         # create network and compile
 net.TrainDCGAN()
 
-print('...test ended')
+print('... %s script ended' %script[:-3])
