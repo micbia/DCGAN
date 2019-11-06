@@ -225,17 +225,22 @@ class DCGANnetwork:
                 
                 # train adversary network, with separated mini-batchs, see Ioffe et al. 2015
                 self.adversary.trainable = True
-                loss_real = self.adversary.train_on_batch(real_images, real_label)
-                loss_fake = self.adversary.train_on_batch(fake_images, fake_label)
-                self.loss_A.append(np.mean([loss_real, loss_fake])), self.loss_A_real.append(loss_real), self.loss_A_fake.append(loss_fake)
+                _, loss_real = self.adversary.train_on_batch(real_images, real_label)
+                _, loss_fake = self.adversary.train_on_batch(fake_images, fake_label)
                 self.adversary.trainable = False
 
                 # train generator network
                 noise = np.random.normal(loc=0., scale=1., size=[self.conf.batch_size, self.conf.input_dim])
                 real_label = np.random.uniform(low=0.7, high=1.2, size=self.conf.batch_size)
-                loss_gen = self.gan.train_on_batch(noise, real_label)
-                self.loss_G.append(loss_gen)
+                _, loss_gen = self.gan.train_on_batch(noise, real_label)
+            
+            # store losses at the end of every batch cycle
+            self.loss_A.append(np.mean([loss_real, loss_fake]))
+            self.loss_A_real.append(loss_real)
+            self.loss_A_fake.append(loss_fake)    
+            self.loss_G.append(loss_gen)
 
+            # print losses to monitor trainig
             print('Adversary:\t tot_loss = %.3f\n\t\treal_loss = %.3f\n\t\tfake_loss = %.3f' %(self.loss_A[ep], self.loss_A_real[ep], self.loss_A_fake[ep]))
             print('Generator:\t tot_loss = %.3f' %self.loss_G[ep])
             
