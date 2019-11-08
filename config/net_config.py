@@ -41,6 +41,7 @@ class NetworkConfig:
         config.read(self.config_file)
         
         trainconfig = config['TRAINING']
+        self.type_of_gan    = trainconfig['TYPE_GAN']
         self.dataset        = trainconfig['DATASET']
         self.input_dim      = eval(trainconfig['INPUT_DIM'])
         self.coarse_dim     = np.array(eval(trainconfig['COARSE_DIM']), dtype=int)
@@ -49,10 +50,7 @@ class NetworkConfig:
         self.filters        = eval(trainconfig['FILTERS'])
         self.epochs         = eval(trainconfig['EPOCHS'])
         self.batch_size     = eval(trainconfig['BATCH_SIZE'])
-        self.alpha          = eval(trainconfig['ALPHA'])
         self.dropout        = eval(trainconfig['DROPOUT'])
-        self.lr             = eval(trainconfig['LEARNING_RATE'])
-        self.beta1          = eval(trainconfig['BETA1'])
         
         resumeconfig = config['RESUME']
         self.resume_path    = StringOrNone(resumeconfig['RESUME_PATH'])

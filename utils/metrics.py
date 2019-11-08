@@ -9,9 +9,8 @@ def R2(y_true, y_pred):
     SS_den = K.sum(K.square(y_true - K.mean(y_true))) 
     return 1 - SS_num/(SS_den + K.epsilon())
 
-def binarycrossentropy(y, ypred):
-    return -(y*np.log10(ypred)+(1-ypred)*np.log10(1-ypred))
-
+def wasserstein_loss(y_true, y_pred):
+    return K.mean(y_true * y_pred)
 
 def LossAdversary(real, fake):
     ''' quantifies how well the adversary is able to distinguish real from fakes images '''

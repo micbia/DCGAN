@@ -1,10 +1,10 @@
 import sys
-from dcganNet import DCGANnetwork
+from dcganNet import GANnetwork
 
 script, init_file = sys.argv
 
-net = DCGANnetwork(CONFIG_FILE=init_file)
-net.DCGAN()         # create network and compile
-net.TrainDCGAN()
+net = GANnetwork(CONFIG_FILE=init_file)
+net.GAN()         # create network and compile
+net.TrainGAN()
 
 print('... %s script ended' %script[:-3])
