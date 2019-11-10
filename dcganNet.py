@@ -14,7 +14,7 @@ from keras.backend import set_image_dim_ordering
 
 from config.net_config import NetworkConfig
 from utils.other_utils import GenerateNoise, GenerateLabels
-from utils.load import LoadTrainData
+#from utils.load import LoadTrainData
 
 # set images dimension as TensorFlow does (sample, row, columns, channels)
 # NOTE: Theano expects 'channels' at the second dimension (index 1)
@@ -246,7 +246,8 @@ class GANnetwork:
             x_train = x_train[:, :, :, np.newaxis]      # shape : (trainsize, 28, 28, 1)
         else:
             # variable dataset will be the directory containing the trianing data
-            LoadTrainData(path=self.conf.dataset, fmt='jpg')  
+            #LoadData(path=self.conf.dataset, fmt='jpg')  
+            print ('to finish')
 
         self.loss_G = []
         self.loss_A = []
