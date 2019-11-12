@@ -289,11 +289,7 @@ class GANnetwork:
             print('Adversary:\tavrg_loss = %.3f\n\t\treal_loss = %.3f\n\t\tfake_loss = %.3f' %(self.loss_A[ep], self.loss_A_real[ep], self.loss_A_fake[ep]))
             print('Generator:\t     loss = %.3f' %self.loss_G[ep])
             
-<<<<<<< HEAD:ganNet.py
             if(ep%10 == 0 or (ep+1) == self.conf.epochs):
-=======
-            if(ep%5 == 0 and ep != 0 or (ep+1) == self.conf.epochs):
->>>>>>> parent of 2b84734... Additional factorization of the code:dcganNet.py
                 #self.CreateCheckpoint(epch=ep, prev_epch=prev_epoch)
                 self.Plots(epch=ep, prev_epch=prev_epoch)
                 prev_epoch = ep
