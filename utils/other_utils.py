@@ -57,15 +57,3 @@ def GenerateLabels(batch_size, return_label='both'):
         return real_label
     else:
         return real_label, fake_label
-
-
-def BatchSample(sample, nr_subsample):
-    ''' sample must be a numpy array '''
-    subsample = sample[np.random.randint(0, sample.shape[0], size=nr_subsample)]
-    return subsample
-
-
-def ScaleData(data, a=1, b=-1):
-    data = data.astype(np.float32)
-    norm_data = (data - np.min(data))/(np.amax(data) - np.amin(data)) * (a-b) + b
-    return norm_data

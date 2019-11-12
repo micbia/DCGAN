@@ -9,10 +9,8 @@ def R2(y_true, y_pred):
     SS_den = K.sum(K.square(y_true - K.mean(y_true))) 
     return 1 - SS_num/(SS_den + K.epsilon())
 
-
 def wasserstein_loss(y_true, y_pred):
     return K.mean(y_true * y_pred)
-
 
 def LossAdversary(real, fake):
     ''' quantifies how well the adversary is able to distinguish real from fakes images '''
@@ -21,17 +19,7 @@ def LossAdversary(real, fake):
     tot_loss = real_loss + fake_loss
     return tot_loss, real_loss, fake_loss
 
-
 def LossGenerator(fake):
     ''' quantifies how well the generator is able to trick the adversary network '''
     fake_loss = binary_crossentropy(np.zeros_like(fake), fake)
     return fake_loss
-
-
-def get_gradient_norm_func(model):
-    grads = K.gradients(model.total_loss, model.trainable_weights)
-    summed_squares = [K.sum(K.square(g)) for g in grads]
-    norm = K.sqrt(sum(summed_squares))
-    inputs = model.model._feed_inputs + model.model._feed_targets + model.model._feed_sample_weights
-    func = K.function(inputs, [norm])
-    return func

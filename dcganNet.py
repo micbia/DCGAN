@@ -3,7 +3,6 @@ import numpy as np, os, configparser, matplotlib.pylab as plt
 from time import time
 from datetime import datetime
 from tqdm import tqdm
-from sklearn import preprocessing
 
 from keras.layers import Dense, Dropout, Flatten, Reshape, BatchNormalization, Input, Activation
 from keras.layers.advanced_activations import LeakyReLU
@@ -14,37 +13,31 @@ from keras import models, optimizers, initializers, callbacks, regularizers
 from keras.backend import set_image_dim_ordering
 
 from config.net_config import NetworkConfig
-from utils.other_utils import GenerateNoise, GenerateLabels, BatchSample, ScaleData
-from utils.load import LoadData
-from model.networks import NetworkComponents
+from utils.other_utils import GenerateNoise, GenerateLabels
+#from utils.load import LoadTrainData
 
 # set images dimension as TensorFlow does (sample, row, columns, channels)
 # NOTE: Theano expects 'channels' at the second dimension (index 1)
 set_image_dim_ordering('tf')
 
 class GANnetwork:
-    def __init__(self, CONFIG_FILE='./config/example.ini', PATH_OUTPUT=None):
-        
+    def __init__(self, CONFIG_FILE='./config/example.ini', PATH_OUTPUT=None, TYPE_GAN='DC'):
+        print('DCGAN network')
+
         # Configure networks
-        self.conf = NetworkConfig(CONFIG_FILE)
         self.config_file = CONFIG_FILE
+        self.conf = NetworkConfig(self.config_file)
         self.optimizer = optimizers.Adam(lr=2e-4, beta_1=0.5)   # see Radford et al. 2015
 
         if(self.conf.type_of_gan == 'DC'):
-            print('DC-GAN network')
             self.lossG = 'binary_crossentropy'
             self.lossA = 'binary_crossentropy'
             self.lossGAN = 'binary_crossentropy'
         elif(self.conf.type_of_gan == 'LS'):
-            print('LS-GAN network')
             self.lossG = 'binary_crossentropy'
             self.lossA = 'mse'
             self.lossGAN = 'mse'
-        elif(self.conf.type_of_gan == 'WGP'):
-            print('WGAN-GP network')
-        
-        print('%s-GAN network' %(self.conf.type_of_gan))
-        
+
         # Create output directory and sub-directories
         if PATH_OUTPUT != None:
             self.path_output = PATH_OUTPUT + datetime.now().strftime('%d-%mT%H-%M-%S')
@@ -70,12 +63,109 @@ class GANnetwork:
         os.system('cp gan.ini %s' %(self.path_output+'/model'))
 
 
-    def GAN(self):
-        print('%s-GAN network' %(self.conf.type_of_gan))
+    def Generator(self):
+        print('Create Generator network...')
+        G = models.Sequential()
 
-        net = NetworkComponents(CONFIG_FILE=self.config_file, PATH_OUTPUT=self.path_output)
-        self.generator = net.Generator()
-        self.adversary = net.Adversary()
+        kinit = initializers.RandomNormal(mean=0.0, stddev=0.02)
+        
+        # first block
+        G.add(Dense(np.prod(self.conf.coarse_dim), 
+                    input_dim=self.conf.input_dim,
+                    kernel_initializer=kinit, 
+                    name='fully_connected_layer'))
+        G.add(BatchNormalization(momentum=0.9, name='mini_batch_1'))
+        G.add(LeakyReLU(alpha=0.01))
+        G.add(Dropout(self.conf.dropout))
+
+        G.add(Reshape(self.conf.coarse_dim, name='low_resolution_output'))
+        assert all(G.output_shape[1:] == self.conf.coarse_dim)
+
+        # second block
+        G.add(Conv2DTranspose(int(self.conf.coarse_dim[2]/2), 
+                              kernel_size=self.conf.filters, 
+                              strides=self.conf.stride,
+                              kernel_initializer=kinit,
+                              padding='same', 
+                              use_bias=False, 
+                              name='convolve_coarse_input'))
+        #assert all(G.output_shape[1:] == np.array([self.conf.coarse_dim[0], self.conf.coarse_dim[1], self.conf.coarse_dim[2]/2]))
+        G.add(BatchNormalization(momentum=0.9, name='mini_batch_2'))
+        G.add(LeakyReLU(alpha=0.01))            # alpha: slope coefficient
+        G.add(Dropout(self.conf.dropout))
+
+        # third block
+        G.add(Conv2DTranspose(int(self.conf.coarse_dim[2]/4), 
+                              kernel_size=self.conf.filters, 
+                              strides=self.conf.stride,
+                              kernel_initializer=kinit, 
+                              padding='same', 
+                              use_bias=False, 
+                              name='convolve_upsampling_1'))
+        #assert all(G.output_shape[1:] == np.array([self.conf.coarse_dim[0]*2, self.conf.coarse_dim[1]*2, self.conf.coarse_dim[2]/4]))
+        G.add(BatchNormalization(momentum=0.9, name='mini_batch_3'))
+        G.add(LeakyReLU(alpha=0.01))
+        G.add(Dropout(self.conf.dropout))
+
+        # outro block
+        G.add(Conv2DTranspose(int(self.conf.output_dim[2]), 
+                              kernel_size=self.conf.filters, 
+                              strides=1, 
+                              kernel_initializer=kinit,
+                              padding='same', 
+                              use_bias=False, 
+                              name='generated_output_picture'))
+        G.add(Activation('tanh'))
+        assert all(G.output_shape[1:] == self.conf.output_dim)
+
+        # compile model
+        #G.compile(loss=self.lossG, optimizer=self.optimizer)
+
+        # Save model visualization
+        plot_model(G, to_file=self.path_output+'images/generator_visualization.png', show_shapes=True, show_layer_names=True)
+        return G
+
+
+    def Adversary(self):
+        print('Create Adversary network...')
+        A = models.Sequential()
+
+        kinit = initializers.RandomNormal(mean=0.0, stddev=0.02)
+
+        # first downsample 
+        A.add(Conv2D(int(self.conf.coarse_dim[2]/4), 
+                     input_shape=self.conf.output_dim, 
+                     kernel_size=self.conf.filters, 
+                     strides=self.conf.stride,
+                     kernel_initializer=kinit,
+                     padding='same'))
+        A.add(LeakyReLU(alpha=0.01))
+        A.add(Dropout(self.conf.dropout))
+
+        # second downsample
+        A.add(Conv2D(int(self.conf.coarse_dim[2]/2),
+                     kernel_size=self.conf.filters, 
+                     strides=self.conf.stride,
+                     kernel_initializer=kinit, 
+                     padding='same'))
+        A.add(LeakyReLU(alpha=0.01))
+        A.add(Dropout(self.conf.dropout))
+
+        # classifier
+        A.add(Flatten())
+        A.add(Dense(self.conf.output_dim[2], activation='sigmoid'))
+        
+        # compile model
+        A.compile(loss=self.lossA, optimizer=self.optimizer)
+
+        # Save model visualization
+        plot_model(A, to_file=self.path_output+'images/adversary_visualization.png', show_shapes=True, show_layer_names=True)
+        return A
+
+
+    def GAN(self):
+        self.generator = self.Generator()
+        self.adversary = self.Adversary()
         
         if(self.conf.resume_path != None and self.conf.resume_epoch != 0):
             # load checkpoint weights 
@@ -100,7 +190,6 @@ class GANnetwork:
 
         # Save model visualization
         plot_model(self.gan, to_file=self.path_output+'images/gan_visualization.png', show_shapes=True, show_layer_names=True)
-        
         return self.gan
 
 
@@ -133,9 +222,9 @@ class GANnetwork:
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig('%simages/gan_loss_ep-%d.png' %(self.path_output, epch), bbox_inches='tight')
+        plt.savefig('%simages/dcgan_loss_ep-%d.png' %(self.path_output, epch), bbox_inches='tight')
         if(prev_epch != 0):
-            os.remove('%simages/gan_loss_ep-%d.png' %(self.path_output, prev_epch))
+            os.remove('%simages/dcgan_loss_ep-%d.png' %(self.path_output, prev_epch))
 
         # Plot generated images
         plt.figure(figsize=(12, 12))
@@ -148,18 +237,16 @@ class GANnetwork:
         plt.tight_layout()
         plt.savefig('%simages/generated_test/dcgan_generated_image_epoch_%d.png' %(self.path_output, epch), bbox_inches='tight')
 
-
     def TrainGAN(self):
         if(self.conf.dataset == 'mnist'):
             # Load MNIST data
-            (x_train, _), (x_test, _) = mnist.load_data()
-            x_train = ScaleData(np.concatenate((x_train, x_test), axis=0), a=1, b=-1)
-            x_train = x_train[:, :, :, np.newaxis]      # shape : (batchsize, 28, 28, 1)
+            (x_train, y_train), (x_test, y_test) = mnist.load_data()
+            # Rescale -1 to 1
+            x_train = (x_train.astype(np.float32) - 127.5)/127.5
+            x_train = x_train[:, :, :, np.newaxis]      # shape : (trainsize, 28, 28, 1)
         else:
             # variable dataset will be the directory containing the trianing data
-            ld = LoadData(PATH_DATA=self.conf.dataset)
-            x_train = ld.dataset
-            x_train = ScaleData(x_train, a=1, b=-1)
+            #LoadData(path=self.conf.dataset, fmt='jpg')  
             print ('to finish')
 
         self.loss_G = []
@@ -172,7 +259,7 @@ class GANnetwork:
             print('--- Epoch %d ---' %(ep+1))
             for bt in tqdm(range(self.conf.batch_size)):
                 # create random array of images (same size of batch) to train network on
-                real_images = BatchSample(sample=x_train, nr_subsample=self.conf.batch_size)
+                real_images = x_train[np.random.randint(0, x_train.shape[0], size=self.conf.batch_size)]
                 
                 # create latent space points (noise) in order to generate fake image
                 noise = GenerateNoise(self.conf.batch_size, self.conf.input_dim)
@@ -183,26 +270,30 @@ class GANnetwork:
 
                 # train adversary network, for separated mini-batchs, see Ioffe et al. 2015
                 self.adversary.trainable = True
-                loss_real = self.adversary.train_on_batch(real_images, real_label)  # update the adversary for real images
-                loss_fake = self.adversary.train_on_batch(fake_images, fake_label)  # update the adversary for fake images
+                loss_real = self.adversary.train_on_batch(real_images, real_label)
+                loss_fake = self.adversary.train_on_batch(fake_images, fake_label)
                 self.adversary.trainable = False
 
                 # train generator network
-                noise2 = GenerateNoise(self.conf.batch_size, self.conf.input_dim)
+                noise = GenerateNoise(self.conf.batch_size, self.conf.input_dim)
                 real_label2 = GenerateLabels(self.conf.batch_size, return_label='real')
-                loss_gen = self.gan.train_on_batch(noise2, real_label2)  # update generator model
+                loss_gen = self.gan.train_on_batch(noise, real_label2)
             
             # store losses at the end of every batch cycle
-            self.loss_A.append(loss_real+loss_fake)
+            self.loss_A.append(0.5*(loss_real+loss_fake))
             self.loss_A_real.append(loss_real)
             self.loss_A_fake.append(loss_fake)    
             self.loss_G.append(loss_gen)
 
             # print losses to monitor trainig
-            print('Adversary:\t tot_loss = %.3f\n\t\treal_loss = %.3f\n\t\tfake_loss = %.3f' %(self.loss_A[ep], self.loss_A_real[ep], self.loss_A_fake[ep]))
+            print('Adversary:\tavrg_loss = %.3f\n\t\treal_loss = %.3f\n\t\tfake_loss = %.3f' %(self.loss_A[ep], self.loss_A_real[ep], self.loss_A_fake[ep]))
             print('Generator:\t     loss = %.3f' %self.loss_G[ep])
             
+<<<<<<< HEAD:ganNet.py
             if(ep%10 == 0 or (ep+1) == self.conf.epochs):
+=======
+            if(ep%5 == 0 and ep != 0 or (ep+1) == self.conf.epochs):
+>>>>>>> parent of 2b84734... Additional factorization of the code:dcganNet.py
                 #self.CreateCheckpoint(epch=ep, prev_epch=prev_epoch)
                 self.Plots(epch=ep, prev_epch=prev_epoch)
                 prev_epoch = ep
