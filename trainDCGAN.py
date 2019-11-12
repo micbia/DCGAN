@@ -1,5 +1,5 @@
 import sys
-from dcganNet import GANnetwork
+from ganNet import GANnetwork
 
 script, init_file = sys.argv
 

@@ -1,0 +1,5 @@
+tensoflow
+keras
+tqdm
+moviepy
+configparser
