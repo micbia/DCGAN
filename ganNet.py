@@ -203,7 +203,7 @@ class GANnetwork:
             print('Generator:\t     loss = %.3f' %self.loss_G[ep])
             
             if(ep%10 == 0 or (ep+1) == self.conf.epochs):
-                self.CreateCheckpoint(epch=ep, prev_epch=prev_epoch)
+                #self.CreateCheckpoint(epch=ep, prev_epch=prev_epoch)
                 self.Plots(epch=ep, prev_epch=prev_epoch)
                 prev_epoch = ep
 
@@ -213,7 +213,7 @@ class GANnetwork:
         np.savetxt('%slossAr.txt' %self.path_output, self.loss_A_real)
         np.savetxt('%slossAf.txt' %self.path_output, self.loss_A_fake)
 
-        self.generator.save_weights('%smodel/generator_weights.h5' %self.path_output)
-        self.adversary.save_weights('%smodel/adversary_weights.h5' %self.path_output)
+        #self.generator.save_weights('%smodel/generator_weights.h5' %self.path_output)
+        #self.adversary.save_weights('%smodel/adversary_weights.h5' %self.path_output)
 
         return 0
